@@ -82,6 +82,7 @@ func (w *Watcher) pollByWebhook(wg *sync.WaitGroup) {
 // ListenAndServe starts the listener server for hooks
 func (w *Watcher) ListenAndServe(errCh chan<- error) {
 	r := mux.NewRouter()
+	r.HandleFunc("/ping", w.pingHandler)
 	r.HandleFunc("/{repository}/github", w.githubHandler)
 	r.HandleFunc("/{repository}/stash", w.stashHandler)
 	r.HandleFunc("/{repository}/bitbucket", w.bitbucketHandler)
@@ -89,6 +90,11 @@ func (w *Watcher) ListenAndServe(errCh chan<- error) {
 
 	addr := fmt.Sprintf("%s:%d", w.hookSvr.Address, w.hookSvr.Port)
 	errCh <- http.ListenAndServe(addr, r)
+}
+
+func (w *Watcher) pingHandler(rw http.ResponseWriter, rq *http.Request) {
+	w.logger.Debugf("GET /ping 200")
+	return
 }
 
 // HTTP handler for github
@@ -101,7 +107,7 @@ func (w *Watcher) githubHandler(rw http.ResponseWriter, rq *http.Request) {
 		http.Error(rw, "Missing X-Github-Event header", http.StatusBadRequest)
 		return
 	}
-	// Only process pusn events
+	// Only process push events
 	if eventType != "push" {
 		return
 	}
